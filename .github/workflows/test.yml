@@ -11,14 +11,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Set Node.js 16.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16.x
       - run: |
           npm install
       - run: |
           npm run all
   test: # make sure the action works on a clean machine without building
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v3
+      - name: install shishoctl
+        run: |
+          SHISHOCTL_URL="https://shisho.dev/releases/shishoctl-0.1.1-x86_64-unknown-linux-gnu"
+          sudo curl -L $SHISHOCTL_URL -o /usr/local/bin/shishoctl
+          sudo chmod +x /usr/local/bin/shishoctl
       - uses: ./
         with:
-          milliseconds: 1000
+          bot-id: BT_FAKE_BOT_ID
+        continue-on-error: true # of course this step will fail because there's no such bot

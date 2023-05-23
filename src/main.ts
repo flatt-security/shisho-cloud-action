@@ -1,19 +1,68 @@
 import * as core from '@actions/core'
-import {wait} from './wait'
+import assert from 'assert/strict'
+import {execFile} from 'child_process'
 
-async function run(): Promise<void> {
-  try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
+const main = async (): Promise<void> => {
+  const botID = core.getInput('bot-id', {required: true})
+  const expiresInMinutes = core.getInput('expires-in-minutes')
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+  const idToken = await core.getIDToken()
 
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
-  }
+  await new Promise<void>(resolve => {
+    const command = 'shishoctl'
+    const args = [
+      'auth',
+      'signin:bot',
+      '--bot',
+      botID,
+      ...(expiresInMinutes ? ['--expires-in-minutes', expiresInMinutes] : [])
+    ]
+
+    const proc = execFile(command, args, error => {
+      // Note: stdout and stderr are piped to the parent process
+      // so we don't need to print them in the callback
+
+      if (error) {
+        // Note: ExecFileException["code"] has the wrong type
+        switch (error.code as string | number | undefined) {
+          case 'ENOENT': {
+            core.setFailed(
+              `Command \`${error.cmd}\` is not found.
+              Installation instructions are available at https://shisho.dev/docs/g/getting-started/shishoctl`
+            )
+            return
+          }
+          case 'EACCES': {
+            core.setFailed(
+              `Command \`${error.cmd}\` is not executable. Check the permissions of the command.`
+            )
+            return
+          }
+          default: {
+            core.debug(error.message)
+            core.setFailed(
+              `Command \`${error.cmd}\` exited with status code ${proc.exitCode}`
+            )
+            return
+          }
+        }
+      }
+
+      resolve()
+    })
+
+    assert(proc.stdout !== null, 'failed to access stdout')
+    assert(proc.stderr !== null, 'failed to access stderr')
+    assert(proc.stdin !== null, 'failed to access stdin')
+
+    proc.stdout.pipe(process.stdout)
+    proc.stderr.pipe(process.stderr)
+
+    proc.stdin.end(idToken)
+  })
 }
 
-run()
+// eslint-disable-next-line github/no-then
+main().catch(error => {
+  core.setFailed(error)
+})

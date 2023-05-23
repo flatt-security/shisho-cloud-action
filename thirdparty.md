@@ -1,7 +1,11 @@
+# Notices for third-party software
 
+This repository is created from the template [actions/typescript-action](https://github.com/actions/typescript-action), which is licensed under the MIT license.  The copyright notice and the permission notice is included below.
+
+```
 The MIT License (MIT)
 
-Copyright (c) 2023 Flatt Security Inc. and contributors
+Copyright (c) 2018 GitHub, Inc. and contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,3 +24,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+```
+
+The [`/dist`](./dist) directory includes third-party libraries. Their respective license texts can be found in [`/dist/licenses.txt`](./dist/licenses.txt).

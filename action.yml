@@ -1,11 +1,13 @@
-name: 'Your name here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Sign in to Shisho Cloud'
+description: 'signs in to Shisho Cloud'
 inputs:
-  milliseconds: # change this
+  bot-id:
+    description: 'ID of the bot to sign in as'
     required: true
-    description: 'input description here'
-    default: 'default value if applicable'
+  expires-in-minutes:
+    description: 'Expiration time of the access token in minutes'
+    required: false
+    default: ''
 runs:
   using: 'node16'
   main: 'dist/index.js'

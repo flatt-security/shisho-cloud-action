@@ -38,57 +38,62 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-const core = __importStar(__nccwpck_require__(186));
-const wait_1 = __nccwpck_require__(817);
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const ms = core.getInput('milliseconds');
-            core.debug(`Waiting ${ms} milliseconds ...`); // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            core.debug(new Date().toTimeString());
-            yield (0, wait_1.wait)(parseInt(ms, 10));
-            core.debug(new Date().toTimeString());
-            core.setOutput('time', new Date().toTimeString());
-        }
-        catch (error) {
-            if (error instanceof Error)
-                core.setFailed(error.message);
-        }
-    });
-}
-run();
-
-
-/***/ }),
-
-/***/ 817:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.wait = void 0;
-function wait(milliseconds) {
-    return __awaiter(this, void 0, void 0, function* () {
-        return new Promise(resolve => {
-            if (isNaN(milliseconds)) {
-                throw new Error('milliseconds not a number');
+const core = __importStar(__nccwpck_require__(186));
+const strict_1 = __importDefault(__nccwpck_require__(458));
+const child_process_1 = __nccwpck_require__(81);
+const main = () => __awaiter(void 0, void 0, void 0, function* () {
+    const botID = core.getInput('bot-id', { required: true });
+    const expiresInMinutes = core.getInput('expires-in-minutes');
+    const idToken = yield core.getIDToken();
+    yield new Promise(resolve => {
+        const command = 'shishoctl';
+        const args = [
+            'auth',
+            'signin:bot',
+            '--bot',
+            botID,
+            ...(expiresInMinutes ? ['--expires-in-minutes', expiresInMinutes] : [])
+        ];
+        const proc = (0, child_process_1.execFile)(command, args, error => {
+            // Note: stdout and stderr are piped to the parent process
+            // so we don't need to print them in the callback
+            if (error) {
+                // Note: ExecFileException["code"] has the wrong type
+                switch (error.code) {
+                    case 'ENOENT': {
+                        core.setFailed(`Command \`${error.cmd}\` is not found.
+              Installation instructions are available at https://shisho.dev/docs/g/getting-started/shishoctl`);
+                        return;
+                    }
+                    case 'EACCES': {
+                        core.setFailed(`Command \`${error.cmd}\` is not executable. Check the permissions of the command.`);
+                        return;
+                    }
+                    default: {
+                        core.debug(error.message);
+                        core.setFailed(`Command \`${error.cmd}\` exited with status code ${proc.exitCode}`);
+                        return;
+                    }
+                }
             }
-            setTimeout(() => resolve('done!'), milliseconds);
+            resolve();
         });
+        (0, strict_1.default)(proc.stdout !== null, 'failed to access stdout');
+        (0, strict_1.default)(proc.stderr !== null, 'failed to access stderr');
+        (0, strict_1.default)(proc.stdin !== null, 'failed to access stdin');
+        proc.stdout.pipe(process.stdout);
+        proc.stderr.pipe(process.stderr);
+        proc.stdin.end(idToken);
     });
-}
-exports.wait = wait;
+});
+// eslint-disable-next-line github/no-then
+main().catch(error => {
+    core.setFailed(error);
+});
 
 
 /***/ }),
@@ -1818,6 +1823,10 @@ function checkBypass(reqUrl) {
     if (!reqUrl.hostname) {
         return false;
     }
+    const reqHost = reqUrl.hostname;
+    if (isLoopbackAddress(reqHost)) {
+        return true;
+    }
     const noProxy = process.env['no_proxy'] || process.env['NO_PROXY'] || '';
     if (!noProxy) {
         return false;
@@ -1843,13 +1852,24 @@ function checkBypass(reqUrl) {
         .split(',')
         .map(x => x.trim().toUpperCase())
         .filter(x => x)) {
-        if (upperReqHosts.some(x => x === upperNoProxyItem)) {
+        if (upperNoProxyItem === '*' ||
+            upperReqHosts.some(x => x === upperNoProxyItem ||
+                x.endsWith(`.${upperNoProxyItem}`) ||
+                (upperNoProxyItem.startsWith('.') &&
+                    x.endsWith(`${upperNoProxyItem}`)))) {
             return true;
         }
     }
     return false;
 }
 exports.checkBypass = checkBypass;
+function isLoopbackAddress(host) {
+    const hostLower = host.toLowerCase();
+    return (hostLower === 'localhost' ||
+        hostLower.startsWith('127.') ||
+        hostLower.startsWith('[::1]') ||
+        hostLower.startsWith('[0:0:0:0:0:0:0:1]'));
+}
 //# sourceMappingURL=proxy.js.map
 
 /***/ }),
@@ -2780,11 +2800,27 @@ exports["default"] = _default;
 
 /***/ }),
 
+/***/ 458:
+/***/ ((module) => {
+
+module.exports = eval("require")("assert/strict");
+
+
+/***/ }),
+
 /***/ 491:
 /***/ ((module) => {
 
 "use strict";
 module.exports = require("assert");
+
+/***/ }),
+
+/***/ 81:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("child_process");
 
 /***/ }),
 
