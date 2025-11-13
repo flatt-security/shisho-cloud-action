@@ -8,6 +8,10 @@ inputs:
     description: 'Expiration time of the access token in minutes'
     required: false
     default: ''
+  sts-endpoint:
+    description: 'Custom STS endpoint URL'
+    required: false
+    default: ''
 runs:
   using: 'node16'
   main: 'dist/index.js'
