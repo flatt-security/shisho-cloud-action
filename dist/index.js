@@ -48,6 +48,7 @@ const child_process_1 = __nccwpck_require__(81);
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
     const botID = core.getInput('bot-id', { required: true });
     const expiresInMinutes = core.getInput('expires-in-minutes');
+    const stsEndpoint = core.getInput('sts-endpoint');
     const idToken = yield core.getIDToken();
     yield new Promise(resolve => {
         const command = 'shishoctl';
@@ -56,7 +57,8 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             'signin:bot',
             '--bot',
             botID,
-            ...(expiresInMinutes ? ['--expires-in-minutes', expiresInMinutes] : [])
+            ...(expiresInMinutes ? ['--expires-in-minutes', expiresInMinutes] : []),
+            ...(stsEndpoint ? ['--sts-endpoint', stsEndpoint] : [])
         ];
         const proc = (0, child_process_1.execFile)(command, args, error => {
             // Note: stdout and stderr are piped to the parent process

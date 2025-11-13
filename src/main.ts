@@ -5,6 +5,7 @@ import {execFile} from 'child_process'
 const main = async (): Promise<void> => {
   const botID = core.getInput('bot-id', {required: true})
   const expiresInMinutes = core.getInput('expires-in-minutes')
+  const stsEndpoint = core.getInput('sts-endpoint')
 
   const idToken = await core.getIDToken()
 
@@ -15,7 +16,8 @@ const main = async (): Promise<void> => {
       'signin:bot',
       '--bot',
       botID,
-      ...(expiresInMinutes ? ['--expires-in-minutes', expiresInMinutes] : [])
+      ...(expiresInMinutes ? ['--expires-in-minutes', expiresInMinutes] : []),
+      ...(stsEndpoint ? ['--sts-endpoint', stsEndpoint] : [])
     ]
 
     const proc = execFile(command, args, error => {
