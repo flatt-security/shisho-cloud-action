@@ -45,11 +45,39 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(186));
 const strict_1 = __importDefault(__nccwpck_require__(458));
 const child_process_1 = __nccwpck_require__(81);
+const sts_1 = __nccwpck_require__(238);
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
     const botID = core.getInput('bot-id', { required: true });
     const expiresInMinutes = core.getInput('expires-in-minutes');
     const stsEndpoint = core.getInput('sts-endpoint');
+    const exportToken = core.getBooleanInput('export-token');
     const idToken = yield core.getIDToken();
+    // With `export-token: true` the action performs the token exchange itself
+    // and exposes the result as a masked step output; shishoctl is neither
+    // required nor configured. Without it, the shishoctl sign-in below is the
+    // (unchanged) behavior.
+    if (exportToken) {
+        let expiresInSeconds;
+        if (expiresInMinutes !== '') {
+            if (!/^[1-9][0-9]*$/.test(expiresInMinutes)) {
+                core.setFailed(`\`expires-in-minutes\` must be a positive integer (got: ${expiresInMinutes})`);
+                return;
+            }
+            expiresInSeconds = Number(expiresInMinutes) * 60;
+        }
+        const result = yield (0, sts_1.exchangeBotToken)({
+            endpoint: stsEndpoint === '' ? sts_1.DEFAULT_STS_ENDPOINT : stsEndpoint,
+            botID,
+            idToken,
+            expiresInSeconds
+        });
+        // Mask before exposing: the token must never appear in run logs, even if
+        // a later step echoes the output.
+        core.setSecret(result.accessToken);
+        core.setOutput('token', result.accessToken);
+        core.setOutput('expires-at', new Date(Date.now() + result.expiresInSeconds * 1000).toISOString());
+        return;
+    }
     yield new Promise(resolve => {
         const command = 'shishoctl';
         const args = [
@@ -96,6 +124,106 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
 main().catch(error => {
     core.setFailed(error);
 });
+
+
+/***/ }),
+
+/***/ 238:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.exchangeBotToken = exports.DEFAULT_STS_ENDPOINT = void 0;
+const http_client_1 = __nccwpck_require__(255);
+// The production STS bot-exchange endpoint. Overridable only via the
+// `sts-endpoint` input, which takes the full exchange URL.
+exports.DEFAULT_STS_ENDPOINT = 'https://sts.cloud.shisho.dev/bots/exchange';
+// exchangeBotToken swaps an OIDC ID token for a short-lived Shisho access
+// token at the STS. The returned token is a bare access token: callers that
+// need a product-specific wrapper (e.g. `sk_cs_` for the CI/CD sensor
+// manager) prepend it themselves.
+const exchangeBotToken = (params) => __awaiter(void 0, void 0, void 0, function* () {
+    const body = {
+        bot_id: params.botID,
+        id_token: params.idToken
+    };
+    if (params.expiresInSeconds !== undefined) {
+        body.expires_in = params.expiresInSeconds;
+    }
+    const client = new http_client_1.HttpClient('shisho-cloud-action', [], {
+        socketTimeout: 10000,
+        allowRetries: false
+    });
+    try {
+        let status;
+        let responseText;
+        try {
+            const response = yield client.post(params.endpoint, JSON.stringify(body), { 'Content-Type': 'application/json' });
+            status = response.message.statusCode;
+            responseText = yield response.readBody();
+        }
+        catch (error) {
+            throw new Error(`could not reach the STS endpoint ${params.endpoint}: ${error}`);
+        }
+        if (status !== 200) {
+            if (status === 400) {
+                throw new Error(`STS rejected the bot token exchange: Invalid input: ${parseErrorMessage(responseText)}`);
+            }
+            throw new Error(`an error occurred while authenticating, please try again (HTTP ${status})`);
+        }
+        return parseExchangeResult(responseText);
+    }
+    finally {
+        client.dispose();
+    }
+});
+exports.exchangeBotToken = exchangeBotToken;
+const parseExchangeResult = (responseText) => {
+    let parsed;
+    try {
+        parsed = JSON.parse(responseText);
+    }
+    catch (_a) {
+        throw new Error('unexpected response from the STS: not JSON');
+    }
+    if (parsed === null || typeof parsed !== 'object') {
+        throw new Error('unexpected response from the STS: not an object');
+    }
+    const accessToken = parsed.access_token;
+    const expiresIn = parsed.expires_in;
+    if (typeof accessToken !== 'string' || accessToken === '') {
+        throw new Error('unexpected response from the STS: empty access_token');
+    }
+    if (typeof expiresIn !== 'number' || !isFinite(expiresIn) || expiresIn <= 0) {
+        throw new Error('unexpected response from the STS: invalid expires_in');
+    }
+    return { accessToken, expiresInSeconds: expiresIn };
+};
+const parseErrorMessage = (responseText) => {
+    try {
+        const parsed = JSON.parse(responseText);
+        if (parsed !== null && typeof parsed === 'object') {
+            const message = parsed.message;
+            if (typeof message === 'string' && message !== '') {
+                return message;
+            }
+        }
+    }
+    catch (_a) {
+        // fall through to the generic reason
+    }
+    return 'unknown error';
+};
 
 
 /***/ }),

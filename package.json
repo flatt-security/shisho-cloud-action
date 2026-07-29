@@ -23,7 +23,8 @@
   "author": "Flatt Security",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.10.0"
+    "@actions/core": "^1.10.0",
+    "@actions/http-client": "^2.1.0"
   },
   "devDependencies": {
     "@types/node": "^18.16.14",
