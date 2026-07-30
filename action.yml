@@ -12,6 +12,23 @@ inputs:
     description: 'Custom STS endpoint URL'
     required: false
     default: ''
+  export-token:
+    description: >-
+      When true, the action performs the token exchange itself (shishoctl is
+      not required) and exposes the access token as the masked `token` step
+      output instead of signing in via shishoctl.
+    required: false
+    default: 'false'
+outputs:
+  token:
+    description: >-
+      The access token obtained from the exchange, masked in run logs. Set
+      only when `export-token` is true. This is the bare access token;
+      consumers that need a product-specific prefix add it themselves.
+  expires-at:
+    description: >-
+      Time at which the access token expires, in RFC 3339 UTC. Set only when
+      `export-token` is true.
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'

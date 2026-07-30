@@ -10,11 +10,11 @@ jobs:
   build: # make sure build/ci work properly
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Set Node.js 16.x
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - name: Set Node.js 20.x
+        uses: actions/setup-node@v4
         with:
-          node-version: 16.x
+          node-version: 20.x
       - run: |
           npm install
       - run: |
@@ -25,7 +25,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: install shishoctl
         run: |
           SHISHOCTL_URL="https://shisho.dev/releases/shishoctl-0.1.1-x86_64-unknown-linux-gnu"
@@ -35,3 +35,20 @@ jobs:
         with:
           bot-id: BT_FAKE_BOT_ID
         continue-on-error: true # of course this step will fail because there's no such bot
+  test-export-token: # export-token mode must work on a machine WITHOUT shishoctl
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        id: auth
+        with:
+          bot-id: BT_FAKE_BOT_ID
+          export-token: true
+          expires-in-minutes: 360
+        continue-on-error: true # no such bot: the STS must reject the exchange
+      - name: the failure must come from the STS exchange, not a missing shishoctl
+        run: |
+          test "${{ steps.auth.outcome }}" = "failure"
