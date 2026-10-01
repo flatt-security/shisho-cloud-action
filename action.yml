@@ -30,5 +30,5 @@ outputs:
       Time at which the access token expires, in RFC 3339 UTC. Set only when
       `export-token` is true.
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
